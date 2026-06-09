@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>雪山登山紀錄 — Syue Mountain Record</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700;900&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'GenSekiGothic';
+    src: url('assets/fonts/GenSekiGothic2TW-H.otf') format('opentype');
+    font-weight: 900;
+  }
+  @font-face {
+    font-family: 'GenSekiGothic';
+    src: url('assets/fonts/GenSekiGothic2TW-B.otf') format('opentype');
+    font-weight: 700;
+  }
+  @font-face {
+    font-family: 'GenSekiGothic';
+    src: url('assets/fonts/GenSekiGothic2TW-M.otf') format('opentype');
+    font-weight: 500;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; background: #0A0A0A; color: #F5EFE2;
+    font-family: 'GenSekiGothic', 'Noto Sans TC', sans-serif; overflow: hidden;
+  }
+  .stage {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .beat {
+    position: absolute; inset: 0; opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  .beat.active { opacity: 1; }
+  .beat .img {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    transform: scale(1.0);
+    transition: transform var(--dur, 5s) linear;
+  }
+  .beat.active .img { transform: scale(1.08); }
+  .beat .vignette {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 50%, rgba(0,0,0,0.55) 100%),
+      linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+  }
+  .card {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    text-align: center; padding: 0 8%;
+    font-family: 'Noto Serif TC', serif; font-weight: 900;
+    font-size: clamp(40px, 6vw, 92px); letter-spacing: 0.04em;
+    color: #F5EFE2; text-shadow: 0 2px 24px rgba(0,0,0,0.55);
+    opacity: 0; transform: translateY(calc(-50% + 12px));
+    transition: opacity 1.5s ease, transform 1.5s ease;
+  }
+  .beat.active .card { opacity: 1; transform: translateY(-50%); }
+
+  .subtitle {
+    position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%);
+    max-width: 80%; padding: 12px 28px; border-radius: 6px;
+    background: rgba(0,0,0,0.6); color: #FFFFFF;
+    font-family: 'GenSekiGothic', 'Noto Sans TC', sans-serif; font-weight: 500;
+    font-size: clamp(18px, 2vw, 30px); line-height: 1.5; text-align: center;
+    opacity: 0; transition: opacity 0.8s ease;
+  }
+  .beat.active .subtitle { opacity: 1; }
+
+  .chapter {
+    position: absolute; top: 24px; left: 28px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 300;
+    font-size: 13px; letter-spacing: 0.18em; color: rgba(245,239,226,0.7);
+  }
+
+  .progress {
+    position: absolute; left: 0; bottom: 0; height: 2px; background: #E8B14A;
+    width: 0%; transition: width 0.2s linear; box-shadow: 0 0 8px rgba(232,177,74,0.6);
+  }
+
+  .start-screen {
+    position: fixed; inset: 0; background: #0A0A0A; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; gap: 28px;
+  }
+  .start-screen .title {
+    font-family: 'Noto Serif TC', serif; font-weight: 900;
+    font-size: clamp(36px, 5vw, 64px); color: #F5EFE2; letter-spacing: 0.08em;
+  }
+  .start-screen .sub {
+    font-family: 'Noto Sans TC', sans-serif; color: rgba(245,239,226,0.6); font-size: 16px;
+  }
+  .start-screen .play {
+    width: 84px; height: 84px; border: 2px solid #E8B14A; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: #E8B14A;
+    transition: all 0.3s ease;
+  }
+  .start-screen:hover .play { background: #E8B14A; color: #0A0A0A; }
+  .start-screen.hidden { display: none; }
+
+  /* Accent highlight for peak and ending */
+  .beat[data-beat="9"] .card { color: #FFFFFF; text-shadow: 0 0 32px rgba(232,177,74,0.7); }
+  .beat[data-beat="12"] .card { color: #FFFFFF; text-shadow: 0 0 24px rgba(232,177,74,0.5); }
+</style>
+</head>
+<body>
+
+<div class="start-screen" id="startScreen">
+  <div class="title">雪山登山紀錄</div>
+  <div class="play">
+    <svg width="24" height="28" viewBox="0 0 24 28"><path d="M2 2 L22 14 L2 26 Z" fill="currentColor"/></svg>
+  </div>
+  <div class="sub">點擊開始 · 建議全螢幕觀看 · 01:00</div>
+</div>
+
+<div class="stage" id="stage"></div>
+<div class="progress" id="progress"></div>
+<audio id="audio" src="assets/audio/bgm.mp3" preload="auto"></audio>
+
+<script>
+const BEATS = [
+  { i: 1,  s:  0, e:  5, label: "01/12 — DEPARTURE", img: "photo_01.jpg", card: "在沒人看見的凌晨",     sub: "當城市還在沉睡，我們已經背起行囊出發。" },
+  { i: 2,  s:  5, e: 10, label: "02/12 — TWILIGHT",  img: "photo_02.jpg", card: "山頭的晨曦微光",         sub: "天空微微亮起，山脊的輪廓逐漸清晰。" },
+  { i: 3,  s: 10, e: 15, label: "03/12 — SUNRISE",   img: "photo_03.jpg", card: "第一道陽光灑落",         sub: "金黃色的朝陽，溫暖了冰冷的空氣。" },
+  { i: 4,  s: 15, e: 20, label: "04/12 — ASCENT",    img: "photo_04.jpg", card: "踏上這趟旅程",           sub: "朝著更高的地方，我們一步一步向上攀爬。" },
+  { i: 5,  s: 20, e: 25, label: "05/12 — CLIMBING",  img: "photo_05.jpg", card: "路在腳下延伸",           sub: "陡峭的山路，考驗著我們的意志。" },
+  { i: 6,  s: 25, e: 30, label: "06/12 — BREATHING", img: "photo_06.jpg", card: "調整呼吸與節奏",         sub: "在稀薄的空氣中，聆聽著自己的心跳聲。" },
+  { i: 7,  s: 30, e: 35, label: "07/12 — VALLEY",    img: "photo_07.jpg", card: "大山的巍峨與溫柔",       sub: "抬頭看著壯麗的圈谷，感覺自己的渺小。" },
+  { i: 8,  s: 35, e: 40, label: "08/12 — SUMMIT",    img: "photo_08.jpg", card: "頂峰就在眼前",           sub: "穿過重重考驗，我們終於站在雪山之巔。" },
+  { i: 9,  s: 40, e: 45, label: "09/12 — VIEW",      img: "photo_09.jpg", card: "世界就在腳下",           sub: "所有的汗水，在這一刻都化成了喜悅。" },
+  { i:10,  s: 45, e: 50, label: "10/12 — RETURN",    img: "photo_10.jpg", card: "轉身，帶著敬畏回程",     sub: "山一直在這裡，而我們帶走了勇氣。" },
+  { i:11,  s: 50, e: 55, label: "11/12 — MEMORY",    img: "photo_11.jpg", card: "汗水終將乾涸",           sub: "雙腿雖然疲憊，心中的感動卻無比清晰。" },
+  { i:12,  s: 55, e: 60, label: "12/12 — ENDING",    img: "photo_12.jpg", card: "故事，未完待續",         sub: "這不是終點，而是下一次出發的起點。" }
+];
+
+const TOTAL = 60;
+const FADE_START = 50;  // 最後 10 秒淡出
+const stage = document.getElementById('stage');
+
+// 檢測 URL 參數 ?render=true
+const urlParams = new URLSearchParams(window.location.search);
+const isRenderMode = urlParams.get('render') === 'true';
+
+BEATS.forEach(b => {
+  const el = document.createElement('div');
+  el.className = 'beat';
+  el.dataset.beat = b.i;
+  el.style.setProperty('--dur', (b.e - b.s) + 's');
+  el.innerHTML = `
+    <div class="img" style="background-image:url('assets/images/${b.img}')"></div>
+    <div class="vignette"></div>
+    <div class="chapter">${b.label}</div>
+    <div class="card">${b.card}</div>
+    ${b.sub ? `<div class="subtitle">${b.sub}</div>` : ''}
+  `;
+  stage.appendChild(el);
+});
+
+const beatEls = [...document.querySelectorAll('.beat')];
+const audio = document.getElementById('audio');
+const progress = document.getElementById('progress');
+const startScreen = document.getElementById('startScreen');
+
+let currentIdx = -1;
+let currentNarration = null;
+
+// 音訊預加載快取，避免重複建立 Audio 物件
+const narrationAudios = {};
+BEATS.forEach(b => {
+  const padIndex = String(b.i).padStart(2, '0');
+  narrationAudios[b.i] = new Audio(`assets/narration/page-${padIndex}.mp3`);
+  narrationAudios[b.i].preload = "auto";
+});
+
+function tick() {
+  const t = audio.currentTime;
+  progress.style.width = (Math.min(t / TOTAL, 1) * 100) + '%';
+
+  const idx = BEATS.findIndex(b => t >= b.s && t < b.e);
+  if (idx !== -1 && idx !== currentIdx) {
+    beatEls.forEach((el, i) => el.classList.toggle('active', i === idx));
+    currentIdx = idx;
+
+    // 播放此分鏡的口白
+    if (currentNarration) {
+      currentNarration.pause();
+      currentNarration.currentTime = 0;
+    }
+    const narr = narrationAudios[BEATS[idx].i];
+    if (narr && !isRenderMode) { // 渲染模式下由 ffmpeg mux 音訊，瀏覽器端靜音
+      narr.volume = 1.0;
+      narr.play().catch(e => console.log('Narration play blocked:', e));
+      currentNarration = narr;
+    }
+  }
+
+  // 50s-60s 背景音樂與口白淡出 (僅在非渲染模式下作用)
+  if (!isRenderMode) {
+    if (t >= FADE_START && t < TOTAL) {
+      audio.volume = Math.max(0, 0.45 * (1 - (t - FADE_START) / (TOTAL - FADE_START)));
+      if (currentNarration) {
+        currentNarration.volume = Math.max(0, 1 - (t - FADE_START) / (TOTAL - FADE_START));
+      }
+    }
+  }
+
+  if (t >= TOTAL) {
+    audio.pause();
+    audio.currentTime = TOTAL;
+    if (currentNarration) {
+      currentNarration.pause();
+    }
+    beatEls.forEach(el => el.classList.remove('active'));
+    beatEls[BEATS.length - 1].classList.add('active');
+    console.log('Playback finished.');
+    return;
+  }
+
+  if (!audio.paused) requestAnimationFrame(tick);
+}
+
+function startPlayback() {
+  startScreen.classList.add('hidden');
+  audio.volume = isRenderMode ? 0 : 0.45; // 正常模式 BGM 設 45% 音量以防蓋過旁白，渲染模式靜音
+  audio.currentTime = 0;
+  audio.play();
+  beatEls[0].classList.add('active');
+  currentIdx = 0;
+  
+  // 正常播放模式下播放第一幕旁白
+  if (!isRenderMode) {
+    const firstNarr = narrationAudios[1];
+    firstNarr.volume = 1.0;
+    firstNarr.play().catch(e => console.log('First narration blocked:', e));
+    currentNarration = firstNarr;
+  }
+  
+  requestAnimationFrame(tick);
+}
+
+// 處理 render 模式與一般模式
+if (isRenderMode) {
+  startScreen.classList.add('hidden');
+  // 錄製模式下延遲 800ms 等待字型與資源載入後自動啟動
+  setTimeout(() => {
+    startPlayback();
+  }, 1000);
+} else {
+  startScreen.addEventListener('click', startPlayback);
+}
+</script>
+
+</body>
+</html>
